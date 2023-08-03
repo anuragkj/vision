@@ -305,6 +305,38 @@ class TestToTensor:
         with pytest.raises(TypeError):
             trans(np_rng.rand(1, height, width))
 
+def test_twenty_crop(self):
+        to_pil_image = transforms.ToPILImage()
+        h = random.randint(5, 25)
+        w = random.randint(5, 25)
+        for single_dim in [True, False]:
+            crop_h = random.randint(1, h)
+            crop_w = random.randint(1, w)
+            if single_dim:
+                crop_h = min(crop_h, crop_w)
+                crop_w = crop_h
+                transform = transforms.TwentyCrop(crop_h)
+                ten_crop = transforms.TenCrop(crop_h,
+                                                vertical_flip=False)
+            else:
+                transform = transforms.TwentyCrop((crop_h, crop_w))
+                ten_crop = transforms.TenCrop((crop_h, crop_w),
+                                                vertical_flip=False)
+
+            img = to_pil_image(torch.FloatTensor(3, h, w).uniform_())
+            results = transform(img)
+            expected_output = ten_crop(img)
+
+            # Checking if TenCrop and TwentyCrop can be printed as string
+            transform.__repr__()
+            ten_crop.__repr__()
+
+            vflipped_img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            expected_output += ten_crop(vflipped_img)
+
+            assert len(results) == 20
+            assert expected_output == results
+
 
 def test_randomresized_params():
     height = random.randint(24, 32) * 2
