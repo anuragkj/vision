@@ -37,6 +37,7 @@ __all__ = [
     "RandomResizedCrop",
     "FiveCrop",
     "TenCrop",
+    "TwentyCrop",
     "LinearTransformation",
     "ColorJitter",
     "RandomRotation",
@@ -1085,6 +1086,45 @@ class TenCrop(torch.nn.Module):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(size={self.size}, vertical_flip={self.vertical_flip})"
 
+class TwentyCrop(object):
+    """Crop the given PIL Image into four corners and the central crop plus the horizontal and vertical 
+    flipped versions of these
+    .. Note::
+         This transform returns a tuple of images and there may be a mismatch in the number of
+         inputs and targets your Dataset returns. See below for an example of how to deal with
+         this.
+    Args:
+        size (sequence or int): Desired output size of the crop. If size is an
+            int instead of sequence like (h, w), a square crop (size, size) is
+            made.
+    Example:
+         >>> transform = Compose([
+         >>>    TwentyCrop(size), # this is a list of PIL Images
+         >>>    Lambda(lambda crops: torch.stack([ToTensor()(crop) for crop in crops])) # returns a 4D tensor
+         >>> ])
+         >>> #In your test loop you can do the following:
+         >>> input, target = batch # input is a 5d tensor, target is 2d
+         >>> bs, ncrops, c, h, w = input.size()
+         >>> result = model(input.view(-1, c, h, w)) # fuse batch size and ncrops
+         >>> result_avg = result.view(bs, ncrops, -1).mean(1) # avg over crops
+    """
+
+    def __init__(self, size):
+        self.size = size
+        if isinstance(size, numbers.Number):
+            self.size = (int(size), int(size))
+        else:
+            assert len(size) == 2, "Please provide only two dimensions (h, w) for size."
+            self.size = size
+
+    def __call__(self, img):
+        first_ten = F.ten_crop(img, self.size, vertical_flip=False)
+        img = F.vflip(img)
+
+        return first_ten + F.ten_crop(img, self.size, vertical_flip=False)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(size={0})'.format(self.size)
 
 class LinearTransformation(torch.nn.Module):
     """Transform a tensor image with a square transformation matrix and a mean_vector computed
